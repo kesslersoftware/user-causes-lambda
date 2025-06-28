@@ -5,6 +5,7 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 
+import com.boycottpro.models.ResponseMessage;
 import com.boycottpro.models.UserCauses;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,15 +35,25 @@ public class GetUserCausesHandler implements RequestHandler<APIGatewayProxyReque
             Map<String, String> pathParams = event.getPathParameters();
             String userId = (pathParams != null) ? pathParams.get("user_id") : null;
             if (userId == null || userId.isEmpty()) {
+                ResponseMessage message = new ResponseMessage(400,
+                        "sorry, there was an error processing your request",
+                        "user_id not present");
+                String responseBody = objectMapper.writeValueAsString(message);
                 return new APIGatewayProxyResponseEvent()
                         .withStatusCode(400)
-                        .withBody("{\"error\":\"Missing user_id in path\"}");
+                        .withHeaders(Map.of("Content-Type", "application/json"))
+                        .withBody(responseBody);
             }
             String causeId = (pathParams != null) ? pathParams.get("cause_id") : null;
             if (causeId == null || causeId.isEmpty()) {
+                ResponseMessage message = new ResponseMessage(400,
+                        "sorry, there was an error processing your request",
+                        "cause_id not present");
+                String responseBody = objectMapper.writeValueAsString(message);
                 return new APIGatewayProxyResponseEvent()
                         .withStatusCode(400)
-                        .withBody("{\"error\":\"Missing cause_id in path\"}");
+                        .withHeaders(Map.of("Content-Type", "application/json"))
+                        .withBody(responseBody);
             }
             UserCauses userCause = getUserCauses(userId, causeId);
             String responseBody = objectMapper.writeValueAsString(userCause);
@@ -51,9 +62,22 @@ public class GetUserCausesHandler implements RequestHandler<APIGatewayProxyReque
                     .withHeaders(Map.of("Content-Type", "application/json"))
                     .withBody(responseBody);
         } catch (Exception e) {
+            e.printStackTrace();
+            ResponseMessage message = new ResponseMessage(500,
+                    "sorry, there was an error processing your request",
+                    "Unexpected server error: " + e.getMessage());
+            String responseBody = null;
+            try {
+                responseBody = objectMapper.writeValueAsString(message);
+            } catch (JsonProcessingException ex) {
+                System.out.println("json processing exception");
+                ex.printStackTrace();
+                throw new RuntimeException(ex);
+            }
             return new APIGatewayProxyResponseEvent()
                     .withStatusCode(500)
-                    .withBody("{\"error\": \"Unexpected server error: " + e.getMessage() + "\"}");
+                    .withHeaders(Map.of("Content-Type", "application/json"))
+                    .withBody(responseBody);
         }
     }
     public UserCauses getUserCauses(String userId, String causeId) {

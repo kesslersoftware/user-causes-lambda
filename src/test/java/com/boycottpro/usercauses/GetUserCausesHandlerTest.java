@@ -2,7 +2,10 @@ package com.boycottpro.usercauses;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
+import com.boycottpro.models.ResponseMessage;
 import com.boycottpro.models.UserCauses;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
@@ -26,6 +29,8 @@ public class GetUserCausesHandlerTest {
 
     @InjectMocks
     private GetUserCausesHandler handler;
+
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     void testValidUserAndCauseIdReturnsUserCause() throws Exception {
@@ -55,25 +60,27 @@ public class GetUserCausesHandlerTest {
     }
 
     @Test
-    void testMissingUserIdReturns400() {
+    void testMissingUserIdReturns400() throws JsonProcessingException {
         Map<String, String> pathParams = Map.of("cause_id", "cause-123");
         APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent().withPathParameters(pathParams);
 
         var response = handler.handleRequest(event, context);
 
         assertEquals(400, response.getStatusCode());
-        assertTrue(response.getBody().contains("Missing user_id"));
+        ResponseMessage message = objectMapper.readValue(response.getBody(), ResponseMessage.class);
+        assertTrue(message.getDevMsg().contains("user_id not present"));
     }
 
     @Test
-    void testMissingCauseIdReturns400() {
+    void testMissingCauseIdReturns400() throws JsonProcessingException {
         Map<String, String> pathParams = Map.of("user_id", "user-123");
         APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent().withPathParameters(pathParams);
 
         var response = handler.handleRequest(event, context);
 
         assertEquals(400, response.getStatusCode());
-        assertTrue(response.getBody().contains("Missing cause_id"));
+        ResponseMessage message = objectMapper.readValue(response.getBody(), ResponseMessage.class);
+        assertTrue(message.getDevMsg().contains("cause_id not present"));
     }
 
     @Test
