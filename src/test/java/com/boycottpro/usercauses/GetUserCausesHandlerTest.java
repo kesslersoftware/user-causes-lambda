@@ -48,34 +48,45 @@ public class GetUserCausesHandlerTest {
         QueryResponse queryResponse = QueryResponse.builder().items(List.of(item)).build();
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
 
-        Map<String, String> pathParams = Map.of("user_id", userId, "cause_id", causeId);
-        APIGatewayProxyRequestEvent requestEvent = new APIGatewayProxyRequestEvent().withPathParameters(pathParams);
+        Map<String, String> pathParams = Map.of("cause_id", causeId);
+        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent();
+        Map<String, String> claims = Map.of("sub", "11111111-2222-3333-4444-555555555555");
+        Map<String, Object> authorizer = new HashMap<>();
+        authorizer.put("claims", claims);
 
-        var response = handler.handleRequest(requestEvent, context);
+        APIGatewayProxyRequestEvent.ProxyRequestContext rc = new APIGatewayProxyRequestEvent.ProxyRequestContext();
+        rc.setAuthorizer(authorizer);
+        event.setRequestContext(rc);
+        event.setPathParameters(pathParams);
+        var response = handler.handleRequest(event, context);
 
         assertEquals(200, response.getStatusCode());
-        assertTrue(response.getBody().contains(userId));
         assertTrue(response.getBody().contains(causeDesc));
         assertTrue(response.getBody().contains(timestamp));
     }
 
     @Test
     void testMissingUserIdReturns400() throws JsonProcessingException {
-        Map<String, String> pathParams = Map.of("cause_id", "cause-123");
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent().withPathParameters(pathParams);
+        APIGatewayProxyRequestEvent event = null;
 
-        var response = handler.handleRequest(event, context);
+        var response = handler.handleRequest(event, mock(Context.class));
 
-        assertEquals(400, response.getStatusCode());
-        ResponseMessage message = objectMapper.readValue(response.getBody(), ResponseMessage.class);
-        assertTrue(message.getDevMsg().contains("user_id not present"));
+        assertEquals(401, response.getStatusCode());
+        assertTrue(response.getBody().contains("Unauthorized"));
     }
 
     @Test
     void testMissingCauseIdReturns400() throws JsonProcessingException {
         Map<String, String> pathParams = Map.of("user_id", "user-123");
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent().withPathParameters(pathParams);
+        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent();
+        Map<String, String> claims = Map.of("sub", "11111111-2222-3333-4444-555555555555");
+        Map<String, Object> authorizer = new HashMap<>();
+        authorizer.put("claims", claims);
 
+        APIGatewayProxyRequestEvent.ProxyRequestContext rc = new APIGatewayProxyRequestEvent.ProxyRequestContext();
+        rc.setAuthorizer(authorizer);
+        event.setRequestContext(rc);
+        event.setPathParameters(pathParams);
         var response = handler.handleRequest(event, context);
 
         assertEquals(400, response.getStatusCode());
@@ -91,9 +102,16 @@ public class GetUserCausesHandlerTest {
         QueryResponse queryResponse = QueryResponse.builder().items(Collections.emptyList()).build();
         when(dynamoDb.query(any(QueryRequest.class))).thenReturn(queryResponse);
 
-        Map<String, String> pathParams = Map.of("user_id", userId, "cause_id", causeId);
-        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent().withPathParameters(pathParams);
+        Map<String, String> pathParams = Map.of("cause_id", causeId);
+        APIGatewayProxyRequestEvent event = new APIGatewayProxyRequestEvent();
+        Map<String, String> claims = Map.of("sub", "11111111-2222-3333-4444-555555555555");
+        Map<String, Object> authorizer = new HashMap<>();
+        authorizer.put("claims", claims);
 
+        APIGatewayProxyRequestEvent.ProxyRequestContext rc = new APIGatewayProxyRequestEvent.ProxyRequestContext();
+        rc.setAuthorizer(authorizer);
+        event.setRequestContext(rc);
+        event.setPathParameters(pathParams);
         var response = handler.handleRequest(event, context);
 
         assertEquals(200, response.getStatusCode());

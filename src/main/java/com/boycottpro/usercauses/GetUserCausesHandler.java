@@ -7,6 +7,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 
 import com.boycottpro.models.ResponseMessage;
 import com.boycottpro.models.UserCauses;
+import com.boycottpro.utilities.JwtUtility;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
@@ -32,35 +33,20 @@ public class GetUserCausesHandler implements RequestHandler<APIGatewayProxyReque
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context context) {
         try {
+            String sub = JwtUtility.getSubFromRestEvent(event);
+            if (sub == null) return response(401, "Unauthorized");
             Map<String, String> pathParams = event.getPathParameters();
-            String userId = (pathParams != null) ? pathParams.get("user_id") : null;
-            if (userId == null || userId.isEmpty()) {
-                ResponseMessage message = new ResponseMessage(400,
-                        "sorry, there was an error processing your request",
-                        "user_id not present");
-                String responseBody = objectMapper.writeValueAsString(message);
-                return new APIGatewayProxyResponseEvent()
-                        .withStatusCode(400)
-                        .withHeaders(Map.of("Content-Type", "application/json"))
-                        .withBody(responseBody);
-            }
             String causeId = (pathParams != null) ? pathParams.get("cause_id") : null;
             if (causeId == null || causeId.isEmpty()) {
                 ResponseMessage message = new ResponseMessage(400,
                         "sorry, there was an error processing your request",
                         "cause_id not present");
                 String responseBody = objectMapper.writeValueAsString(message);
-                return new APIGatewayProxyResponseEvent()
-                        .withStatusCode(400)
-                        .withHeaders(Map.of("Content-Type", "application/json"))
-                        .withBody(responseBody);
+                return response(400,responseBody);
             }
-            UserCauses userCause = getUserCauses(userId, causeId);
+            UserCauses userCause = getUserCauses(sub, causeId);
             String responseBody = objectMapper.writeValueAsString(userCause);
-            return new APIGatewayProxyResponseEvent()
-                    .withStatusCode(200)
-                    .withHeaders(Map.of("Content-Type", "application/json"))
-                    .withBody(responseBody);
+            return response(200,responseBody);
         } catch (Exception e) {
             e.printStackTrace();
             ResponseMessage message = new ResponseMessage(500,
@@ -74,11 +60,14 @@ public class GetUserCausesHandler implements RequestHandler<APIGatewayProxyReque
                 ex.printStackTrace();
                 throw new RuntimeException(ex);
             }
-            return new APIGatewayProxyResponseEvent()
-                    .withStatusCode(500)
-                    .withHeaders(Map.of("Content-Type", "application/json"))
-                    .withBody(responseBody);
+            return response(500,responseBody);
         }
+    }
+    private APIGatewayProxyResponseEvent response(int status, String body) {
+        return new APIGatewayProxyResponseEvent()
+                .withStatusCode(status)
+                .withHeaders(Map.of("Content-Type", "application/json"))
+                .withBody(body);
     }
     public UserCauses getUserCauses(String userId, String causeId) {
         QueryRequest request = QueryRequest.builder()
@@ -100,7 +89,7 @@ public class GetUserCausesHandler implements RequestHandler<APIGatewayProxyReque
         for (Map<String, AttributeValue> item : response.items()) {
             String causeDesc = item.getOrDefault("cause_desc", AttributeValue.fromS("")).s();
             String timestamp = item.getOrDefault("timestamp", AttributeValue.fromS("")).s();
-            userCause = new UserCauses(userId, causeId, causeDesc,timestamp);
+            userCause = new UserCauses(null, causeId, causeDesc,timestamp);
         }
         return userCause;
     }
